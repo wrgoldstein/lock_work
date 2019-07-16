@@ -18,13 +18,12 @@ class RuleSquasher:
         
     def load_data(self):
         print("[INFO] Loading data for {name}".format(name=self.name))
-        self.rules = pd.read_excel(self.filename, 'Rules')
-        self.values = pd.read_excel(self.filename, 'Values')
+        self.rules = pd.read_excel(self.filename, 'rules', dtype={'Item Number': str})
+        self.values = pd.read_excel(self.filename, 'Values', dtype={'Item Number': str})
         
         self.columns = ['Item Number', 'Rule #', 'SEQ #', 'And /Or','Parent Sgmt','Def. Rel.',
                'Select Value']
         rules_subset = self.rules[self.columns]
-        rules_subset['Item Number'] = rules_subset['Item Number'].astype(str)
 
         if len(self.values):
             # Some sheets have no values used
@@ -33,13 +32,9 @@ class RuleSquasher:
 
             self.used_columns = self.columns[2:] + self.values_columns[3:]
             values_subset = self.values[self.values_columns]
-            
-            values_subset['Item Number'] = values_subset['Item Number'].astype(str)
-
             merged_subset = pd.merge(rules_subset, values_subset, 
                                      on=['Item Number', 'Rule #', 'SEQ #'], 
                                      how='outer')
-
             self.dataset = merged_subset
         else:
             self.used_columns = self.columns[2:]
@@ -85,22 +80,30 @@ class RuleSquasher:
                           left_on='rule',
                           right_index=True).sort_values('count', ascending=False)
         return merged.groupby('rule_id').apply(lambda g: ','.join(g['Item Number'].unique()))
+
+    def rule_numbers(self):
+        merged = pd.merge(self.grouped.to_frame('rule').reset_index(), 
+                          self.rule_counts(), 
+                          left_on='rule',
+                          right_index=True).sort_values('count', ascending=False)
+        return merged.groupby('rule')['Rule #'].apply(lambda s: ','.join(s.astype(int).astype(str)))
         
     def squash(self):
         print("[INFO] Squashing rules")
         rule_counts = self.rule_counts()
         rule_parts = self.rule_parts()
         rule_order = self.rule_order()
+        rule_numbers = self.rule_numbers()
         
         rules_output = []
 
         for rule_string, s in rule_counts.iterrows():
-            d = {}
             df = pd.DataFrame(self.hydrate_rule(rule_string)).replace('nan', '')
 
             df['rule_id'] = rule_order.loc[rule_string].rule_order
             df['first_part'] = rule_order.loc[rule_string].Part
             df['part_numbers'] = rule_parts.loc[s.rule_id]
+            df['rule_numbers'] = rule_numbers.loc[rule_string]
             df['number_of_appearances'] = rule_counts.loc[rule_string]['count']
             rules_output.append(df)
 
