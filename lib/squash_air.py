@@ -29,12 +29,12 @@ class RuleSquasher:
         if len(self.values):
             # Some sheets have no values used
             
-            self.values_columns = ['Item Number', 'Rule #', 'L T', 'SEQ #', 'Segment Value']
+            self.values_columns = ['Item Number', 'Rule #', 'L T', 'SEQ #', 'Parent Sgmt', 'Segment Value']
 
             self.used_columns = self.columns[2:] + self.values_columns[4:]
             values_subset = self.values[self.values_columns]
             merged_subset = pd.merge(rules_subset, values_subset, 
-                                     on=['Item Number', 'Rule #', 'L T', 'SEQ #'], 
+                                     on=['Item Number', 'Rule #', 'L T', 'SEQ #', 'Parent Sgmt'], 
                                      how='outer')
 
             self.dataset = merged_subset

@@ -18,7 +18,7 @@ class RuleSquasher:
         
     def load_data(self):
         print("[INFO] Loading data for {name}".format(name=self.name))
-        self.rules = pd.read_excel(self.filename, 'rules', dtype={'Item Number': str})
+        self.rules = pd.read_excel(self.filename, 'Rules', dtype={'Item Number': str})
         self.values = pd.read_excel(self.filename, 'Values', dtype={'Item Number': str})
         
         self.columns = ['Item Number', 'Rule #', 'SEQ #', 'And /Or','Parent Sgmt','Def. Rel.',
@@ -28,12 +28,12 @@ class RuleSquasher:
         if len(self.values):
             # Some sheets have no values used
             
-            self.values_columns = ['Item Number', 'Rule #', 'SEQ #', 'Segment Value']
+            self.values_columns = ['Item Number', 'Rule #', 'SEQ #', 'Parent Sgmt', 'Segment Value']
 
-            self.used_columns = self.columns[2:] + self.values_columns[3:]
+            self.used_columns = self.columns[2:] + self.values_columns[4:]
             values_subset = self.values[self.values_columns]
             merged_subset = pd.merge(rules_subset, values_subset, 
-                                     on=['Item Number', 'Rule #', 'SEQ #'], 
+                                     on=['Item Number', 'Rule #', 'Parent Sgmt', 'SEQ #'], 
                                      how='outer')
             self.dataset = merged_subset
         else:
