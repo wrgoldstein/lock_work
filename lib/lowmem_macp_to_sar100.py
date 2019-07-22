@@ -2,13 +2,15 @@
 import csv
 from collections import defaultdict
 
+root = 'C:/Users/wilgol/Downloads/Compare Master MACP SAR100/'
+
 items = defaultdict(dict)
 item_numbers = set()
 
 f_colcode = lambda s: s.split(' ')[-1]
 f_colname = lambda s: ' '.join(s.split(' ')[:-1])
 
-filename = 'C:/Users/wilgol/Downloads/Compare/master_.csv'
+filename = root + '/master_.csv'
 with open(filename, newline='') as csvfile:
     spamreader = csv.reader(csvfile)
     i = 0
@@ -18,13 +20,17 @@ with open(filename, newline='') as csvfile:
             code = list(map(f_colcode, row))
             header_codes = dict(zip(header, code))
             j = header.index('Item Number')
+            k = header.index('Stocking Type Code')
             i += 1
         else:
+            if (row[k] == 'O'):
+                print("Skipping", row[j])
+                continue
             item_numbers.add(row[j])
             items[row[j]]['Master'] = dict(zip(header, row))
 
 
-filename = 'C:/Users/wilgol/Downloads/Compare/macp_.csv'
+filename = root + '/macp_.csv'
 with open(filename, newline='') as csvfile:
     spamreader = csv.reader(csvfile)
     i = 0
@@ -32,11 +38,15 @@ with open(filename, newline='') as csvfile:
         if i == 0:
             header = row
             j = header.index('Item Number')
+            k = header.index('Stocking Type Code')
             i += 1
         else:
+            if (row[k] == 'O'):
+                print("Skipping", row[j])
+                continue
             items[row[j]]['MACP'] = dict(zip(header, row))
 
-filename = 'C:/Users/wilgol/Downloads/Compare/sar100_.csv'
+filename = root + '/sar100_.csv'
 with open(filename, newline='') as csvfile:
     spamreader = csv.reader(csvfile)
     i = 0
@@ -44,9 +54,13 @@ with open(filename, newline='') as csvfile:
         if i == 0:
             header = row
             j = header.index('Item Number')
+            k = header.index('Stocking Type Code')
             i += 1
         else:
-            items[row[j]]['Sargent'] = dict(zip(header, row))
+            if (row[k] == 'O'):
+                print("Skipping", row[j])
+                continue
+            items[row[j]]['SAR100'] = dict(zip(header, row))
 
 import pandas as pd
 
@@ -58,7 +72,7 @@ def item_to_frame(item_number):
     item = dict(list(filter(lambda v: len(v[1]), item.items())))
     df = pd.DataFrame(item).reset_index()
 
-    required_columns = ['Master', 'MACP', 'Sargent']
+    required_columns = ['Master', 'MACP', 'SAR100']
 
     columns = [c for c in required_columns if c in item]
 
@@ -70,31 +84,9 @@ def item_to_frame(item_number):
         if column not in df.columns:
             df[column] = None
 
-    df = df[['Item Number', 'Field', 'Code', 'Master', 'MACP', 'Sargent']]
+    df = df[['Item Number', 'Field', 'Code', 'Master', 'MACP', 'SAR100']]
 
     return df.fillna("<<DNE>>")
-
-
-to_concat = []
-i = 0
-for item_number in item_numbers:
-    print('.', end='')
-    df = item_to_frame(item_number)
-    to_concat.append(df)
-
-    i += 1
-
-    if i % 3000 == 0:
-        # 25000 items 
-        print()
-        print('Writing items...')
-        big = pd.concat(to_concat)
-        form = {'item1': big['Item Number'].min(), 'item2': big['Item Number'].max()}
-        filename = 'C:/Users/wilgol/Downloads/Compare/chunk_{item1}_to_{item2}.csv'.format(**form)
-        big.to_csv(filename, index=False)
-        to_concat = []
-        print(' {} items written'.format(i))
-
 
 
 to_concat = []
@@ -109,9 +101,9 @@ for item_number in item_numbers:
     if i % 5000 == 0:
         print('\nWriting items...', end=' ')
         big = pd.concat(to_concat)
-        big = big[big.Master != big.Sargent]
+        big = big[big.Master != big.SAR100]
         form = {'item1': big['Item Number'].min(), 'item2': big['Item Number'].max()}
-        filename = 'C:/Users/wilgol/Downloads/Compare/chunk_{item1}_to_{item2}.csv'.format(**form)
+        filename = root + '/chunk_{item1}_to_{item2}.csv'.format(**form)
         big.to_csv(filename, index=False)
         to_concat = []
         print(' {} items written'.format(i))
