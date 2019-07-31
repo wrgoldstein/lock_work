@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import numpy as np
 from glob import glob
+from pathlib import Path
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -13,7 +14,7 @@ class RuleSquasher:
     
     def __init__(self, filename, output_dir):
         self.filename = filename
-        self.name = filename.split('\\')[-1][:-5]
+        self.name = Path(filename).name[:-5]
         print("[INFO] Initializing {name}".format(name=self.name))
         self.output_filename = output_dir + self.name + ".xlsx"
         
@@ -22,7 +23,7 @@ class RuleSquasher:
         self.rules = pd.read_excel(self.filename, 'Rules', dtype={'Item Number': str})
         self.values = pd.read_excel(self.filename, 'Values', dtype={'Item Number': str})
         
-        self.columns = ['Item Number', 'Rule #', 'L T', 'SEQ #', 'And /Or','Parent Sgmt','Def. Rel.',
+        self.columns = ['Item Number', 'Rule #', 'L T', 'SEQ #', 'And /Or','Def. Rel.', 'Parent Sgmt',
                'Select Value', '2nd Item Number', 'Table Name',  'Derived Calculation', 'Ext Program ID']
         rules_subset = self.rules[self.columns]
 
@@ -31,7 +32,10 @@ class RuleSquasher:
             
             self.values_columns = ['Item Number', 'Rule #', 'L T', 'SEQ #', 'Parent Sgmt', 'Segment Value']
 
-            self.used_columns = self.columns[2:] + self.values_columns[4:]
+            # There is insistence on ordering the columns in this particular way
+            self.used_columns = self.columns[2:]
+            i = self.used_columns.index('Select Value') + 1
+            self.used_columns.insert(i, 'Segment Value')
             values_subset = self.values[self.values_columns]
             merged_subset = pd.merge(rules_subset, values_subset, 
                                      on=['Item Number', 'Rule #', 'L T', 'SEQ #', 'Parent Sgmt'], 
@@ -48,7 +52,7 @@ class RuleSquasher:
 
     def combine_rule(self, group):
         "Take a multi rule `rule` and turn it into a single string"
-        return '|'.join([';'.join([str(s) if s or s==0 else '' for s  in row]) for row in group.values[:,2:]])
+        return '|'.join([';'.join([str(s) if s or s==0 else '' for s  in row]) for row in group[self.used_columns].values])
     
     def get_min_row_and_part(self, group):
         row = group['index'].min()
@@ -60,7 +64,7 @@ class RuleSquasher:
         "Take a rule created by `combine_rule` and expand it to multiple rows"
         values = [row.split(';') for row in rule.split('|')]
         return dict(zip(self.used_columns, np.transpose(values)))
-    
+
     def rule_counts(self):
         rule_counts = self.grouped.value_counts().to_frame().reset_index().reset_index()
         rule_counts.columns = 'rule_id', 'rule', 'count'
@@ -128,9 +132,9 @@ class RuleSquasher:
 
 def run_all_matching(matchme, output):
     filenames = glob(matchme)
-    already_run = list(map(lambda s: s.split("\\")[-1], glob(output+'*')))
+    already_run = list(map(lambda s: Path(s).name, glob(output+'*')))
     for filename in filenames:
-        if filename.split("\\")[-1] not in already_run:
+        if Path(filename).name not in already_run:
             RuleSquasher(filename, output).load_data().squash().save()
             print()
         else:
